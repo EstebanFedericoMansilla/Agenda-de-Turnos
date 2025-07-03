@@ -138,8 +138,11 @@
       <button type="submit">Agregar turno</button>
     </form>
     <button id="exportarCSV" style="width:100%;margin-bottom:10px;">Exportar a CSV</button>
+    <button id="exportarJSON" style="width:100%;margin-bottom:10px;">Exportar a JSON</button>
     <input type="file" id="importarCSV" accept=".csv" style="width:100%;margin-bottom:10px;">
+    <input type="file" id="importarJSON" accept=".json" style="width:100%;margin-bottom:10px;">
     <label for="importarCSV" style="display:block;text-align:center;color:#2a7ae2;font-size:0.95em;cursor:pointer;margin-bottom:10px;">Importar turnos desde CSV</label>
+    <label for="importarJSON" style="display:block;text-align:center;color:#2a7ae2;font-size:0.95em;cursor:pointer;margin-bottom:10px;">Importar turnos desde JSON</label>
     <table id="tabla-turnos">
       <thead>
         <tr>
@@ -244,6 +247,32 @@
       }
     });
 
+    // Exportar a JSON
+    document.getElementById('exportarJSON').addEventListener('click', function() {
+      const turnos = obtenerTurnos();
+      if (!turnos.length) {
+        alert('No hay turnos para exportar.');
+        return;
+      }
+      const datos = {
+        turnos: turnos,
+        fecha_exportacion: new Date().toLocaleString()
+      };
+      try {
+        const blob = new Blob([JSON.stringify(datos, null, 2)], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'turnos_' + new Date().toISOString().slice(0, 10) + '.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        alert('Tu dispositivo no permite descargar archivos. Puedes copiar y pegar los datos en otra app.');
+      }
+    });
+
     // Importar desde CSV
     document.getElementById('importarCSV').addEventListener('change', function(e) {
       const file = e.target.files[0];
@@ -273,6 +302,31 @@
         renderTurnos();
         alert('Turnos importados correctamente.');
         e.target.value = '';
+      };
+      reader.readAsText(file);
+    });
+
+    // Importar desde JSON
+    document.getElementById('importarJSON').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function() {
+        try {
+          const datos = JSON.parse(reader.result);
+          if (!Array.isArray(datos.turnos)) {
+            alert('El archivo JSON no tiene el formato correcto.');
+            return;
+          }
+          if (confirm('¿Seguro que quieres importar estos turnos? Se reemplazarán los turnos actuales.')) {
+            guardarTurnos(datos.turnos);
+            renderTurnos();
+            alert('Turnos importados correctamente.');
+            e.target.value = '';
+          }
+        } catch (error) {
+          alert('Error al importar datos: ' + error.message);
+        }
       };
       reader.readAsText(file);
     });
