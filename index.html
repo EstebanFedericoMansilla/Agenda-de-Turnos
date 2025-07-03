@@ -141,8 +141,10 @@
     <input type="file" id="importarCSV" accept=".csv" style="width:100%;margin-bottom:10px;">
     <label for="importarCSV" style="display:block;text-align:center;color:#2a7ae2;font-size:0.95em;cursor:pointer;margin-bottom:10px;">Importar turnos desde CSV</label>
     <button id="exportarJSON" style="width:100%;margin-bottom:10px;">Exportar a JSON</button>
-    <input type="file" id="importarJSON" accept=".json" style="width:100%;margin-bottom:10px;">
-    <label for="importarJSON" style="display:block;text-align:center;color:#2a7ae2;font-size:0.95em;cursor:pointer;margin-bottom:10px;">Importar turnos desde JSON</label>
+    <div style="margin-bottom:10px;">
+      <textarea id="importarJSONTextarea" placeholder="Pega aquí el texto del archivo JSON para importar turnos" style="width:100%;min-height:60px;resize:vertical;font-size:1em;"></textarea>
+      <button id="importarJSONBtn" style="width:100%;margin-top:4px;">Importar turnos desde JSON pegado</button>
+    </div>
     <table id="tabla-turnos">
       <thead>
         <tr>
@@ -302,28 +304,25 @@
       }
     });
 
-    // Importar desde JSON
-    document.getElementById('importarJSON').addEventListener('change', function(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function() {
-        try {
-          const nuevosTurnos = JSON.parse(reader.result);
-          if (!Array.isArray(nuevosTurnos) || !nuevosTurnos.length) {
-            alert('El archivo JSON no tiene datos válidos.');
-            return;
-          }
-          const turnos = obtenerTurnos();
-          guardarTurnos(turnos.concat(nuevosTurnos));
-          renderTurnos();
-          alert('Turnos importados correctamente.');
-          e.target.value = '';
-        } catch (err) {
-          alert('El archivo JSON no es válido.');
-        }
-      };
-      reader.readAsText(file);
+    // Importar desde JSON pegado
+    document.getElementById('importarJSONBtn').addEventListener('click', function() {
+      const textarea = document.getElementById('importarJSONTextarea');
+      let nuevosTurnos;
+      try {
+        nuevosTurnos = JSON.parse(textarea.value);
+      } catch (err) {
+        alert('El texto pegado no es un JSON válido.');
+        return;
+      }
+      if (!Array.isArray(nuevosTurnos) || !nuevosTurnos.length) {
+        alert('El JSON pegado no tiene turnos válidos.');
+        return;
+      }
+      const turnos = obtenerTurnos();
+      guardarTurnos(turnos.concat(nuevosTurnos));
+      renderTurnos();
+      alert('Turnos importados correctamente.');
+      textarea.value = '';
     });
 
     // Inicializar
