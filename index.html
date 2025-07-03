@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Agenda de Turnos - Tu Comercio</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f7f7f7; margin: 0; padding: 0; }
+    .container { max-width: 420px; margin: 40px auto; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px #0001; padding: 24px; }
+    h1 { text-align: center; color: #2a7ae2; }
+    form { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
+    input, button { padding: 10px; border-radius: 4px; border: 1px solid #ccc; }
+    button { background: #2a7ae2; color: #fff; border: none; cursor: pointer; transition: background 0.2s; }
+    button:hover { background: #185a9d; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 8px; border-bottom: 1px solid #eee; text-align: left; }
+    th { background: #f0f4fa; }
+    .borrar { color: #e22; cursor: pointer; font-weight: bold; }
+    .borrar:hover { text-decoration: underline; }
+    .info { font-size: 0.95em; color: #555; margin-bottom: 16px; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 id="nombreComercio">Agenda de Turnos</h1>
+    <div class="info">
+      Registra y gestiona tus turnos fácilmente.<br>
+      <b>¿Cómo usar?</b> Agrega turnos con el formulario, toca el ícono 🗑️ para borrar. Puedes buscar por nombre o fecha. <span style="color:#e22">¡Los datos quedan guardados en tu teléfono!</span><br>
+      <span style="color:#2a7ae2">Para guardar una copia de tus turnos, usa el botón "Exportar a CSV" (si tu teléfono lo permite).</span>
+    </div>
+    <input type="text" id="busqueda" placeholder="Buscar por nombre o fecha" style="width:100%;margin-bottom:10px;">
+    <form id="form-turno">
+      <input type="text" id="nombre" placeholder="Nombre del cliente" required>
+      <input type="date" id="fecha" required>
+      <input type="time" id="hora" required>
+      <input type="tel" id="telefono" placeholder="Teléfono (opcional)">
+      <button type="submit">Agregar turno</button>
+    </form>
+    <button id="exportarCSV" style="width:100%;margin-bottom:10px;">Exportar a CSV</button>
+    <input type="file" id="importarCSV" accept=".csv" style="width:100%;margin-bottom:10px;">
+    <label for="importarCSV" style="display:block;text-align:center;color:#2a7ae2;font-size:0.95em;cursor:pointer;margin-bottom:10px;">Importar turnos desde CSV</label>
+    <table id="tabla-turnos">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Fecha</th>
+          <th>Hora</th>
+          <th>Teléfono</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <script>
+    // Funciones de almacenamiento local
+    function obtenerTurnos() {
+      return JSON.parse(localStorage.getItem('turnos') || '[]');
+    }
+    function guardarTurnos(turnos) {
+      localStorage.setItem('turnos', JSON.stringify(turnos));
+    }
+
+    // Renderizar turnos con filtro
+    function renderTurnos() {
+      const turnos = obtenerTurnos();
+      const filtro = document.getElementById('busqueda').value.toLowerCase();
+      const tbody = document.querySelector('#tabla-turnos tbody');
+      tbody.innerHTML = '';
+      turnos.forEach((t, i) => {
+        if (
+          t.nombre.toLowerCase().includes(filtro) ||
+          t.fecha.includes(filtro)
+        ) {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${t.nombre}</td>
+            <td>${t.fecha}</td>
+            <td>${t.hora}</td>
+            <td>${t.telefono || ''}</td>
+            <td><span class="borrar" data-i="${i}">🗑️</span></td>
+          `;
+          tbody.appendChild(tr);
+        }
+      });
+    }
+
+    // Buscar en tiempo real
+    document.getElementById('busqueda').addEventListener('input', renderTurnos);
+
+    // Agregar turno
+    document.getElementById('form-turno').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const nombre = document.getElementById('nombre').value.trim();
+      const fecha = document.getElementById('fecha').value;
+      const hora = document.getElementById('hora').value;
+      const telefono = document.getElementById('telefono').value.trim();
+      if (!nombre || !fecha || !hora) return;
+      const turnos = obtenerTurnos();
+      turnos.push({ nombre, fecha, hora, telefono });
+      guardarTurnos(turnos);
+      renderTurnos();
+      this.reset();
+    });
+
+    // Borrar turno con confirmación
+    document.querySelector('#tabla-turnos').addEventListener('click', function(e) {
+      if (e.target.classList.contains('borrar')) {
+        if (confirm('¿Seguro que quieres borrar este turno?')) {
+          const i = e.target.getAttribute('data-i');
+          const turnos = obtenerTurnos();
+          turnos.splice(i, 1);
+          guardarTurnos(turnos);
+          renderTurnos();
+        }
+      }
+    });
+
+    // Exportar a CSV
+    document.getElementById('exportarCSV').addEventListener('click', function() {
+      const turnos = obtenerTurnos();
+      if (!turnos.length) {
+        alert('No hay turnos para exportar.');
+        return;
+      }
+      let csv = 'Nombre,Fecha,Hora,Teléfono\n';
+      turnos.forEach(t => {
+        csv += `${t.nombre},${t.fecha},${t.hora},${t.telefono || ''}\n`;
+      });
+      // Intentar descargar (no todos los teléfonos lo permiten)
+      try {
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'turnos.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        alert('Tu dispositivo no permite descargar archivos. Puedes copiar y pegar los datos en otra app.');
+      }
+    });
+
+    // Importar desde CSV
+    document.getElementById('importarCSV').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function() {
+        const lines = reader.result.split(/\r?\n/).filter(Boolean);
+        if (lines.length < 2) {
+          alert('El archivo CSV no tiene datos válidos.');
+          return;
+        }
+        // Suponemos encabezado: Nombre,Fecha,Hora,Teléfono
+        const nuevosTurnos = [];
+        for (let i = 1; i < lines.length; i++) {
+          const [nombre, fecha, hora, telefono] = lines[i].split(',');
+          if (nombre && fecha && hora) {
+            nuevosTurnos.push({ nombre, fecha, hora, telefono });
+          }
+        }
+        if (!nuevosTurnos.length) {
+          alert('No se encontraron turnos válidos en el archivo.');
+          return;
+        }
+        // Agregar a los turnos existentes
+        const turnos = obtenerTurnos();
+        guardarTurnos(turnos.concat(nuevosTurnos));
+        renderTurnos();
+        alert('Turnos importados correctamente.');
+        e.target.value = '';
+      };
+      reader.readAsText(file);
+    });
+
+    // Inicializar
+    renderTurnos();
+  </script>
+</body>
+</html>
